@@ -103,6 +103,7 @@ h1 small{font-family:var(--f-mono);font-weight:500;font-size:.72rem;color:var(--
 .ex-de{display:flex;gap:10px;align-items:flex-start;font-weight:600;font-size:1.02rem;line-height:1.45}
 .ex-de span{min-width:0;overflow-wrap:anywhere;padding-top:3px}
 .ex-en{color:var(--muted);font-size:.9rem;padding-left:40px}
+.ex-tr{font-size:.9rem;padding-left:40px;white-space:pre-line;border-top:1px dashed var(--line);padding-top:6px;margin-top:2px}
 .seg.mode{align-self:stretch}
 .seg.mode button{flex:1;font-size:.95rem;padding:9px 12px}
 .word.sent{font-family:var(--f-body);font-weight:600;font-size:clamp(1.2rem,5vw,1.55rem);line-height:1.45;letter-spacing:0}
@@ -147,7 +148,7 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
       <div class="stat"><b id="gsGenus">–</b><em>Genus</em></div>
       <div class="stat"><b id="gsKasus">–</b><em>Artikel</em></div>
       <div class="stat"><b id="gsAdj">–</b><em>Endungen</em></div>
-      <div class="stat"><b id="gsN">0</b><em>Fragen</em></div>
+      <div class="stat"><b id="gsPlural">–</b><em>Plural</em></div>
     </div>
 
     <div class="stats v-only">
@@ -166,7 +167,7 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
     <div class="panel" style="display:flex;flex-direction:column;gap:16px">
       <div class="setting g-only"><div class="label">Übung</div>
         <div class="seg" id="gtSeg" role="group" aria-label="Übung">
-          <button data-v="mix">Gemischt</button><button data-v="genus">der/die/das</button><button data-v="kasus">Artikel im Kasus</button><button data-v="adj">Adjektivendungen</button>
+          <button data-v="mix">Gemischt</button><button data-v="genus">der/die/das</button><button data-v="kasus">Artikel im Kasus</button><button data-v="adj">Adjektivendungen</button><button data-v="plural">Plural</button>
         </div></div>
       <div class="setting v-only"><div class="label">Abfragerichtung</div>
         <div class="seg" id="dirSeg" role="group" aria-label="Abfragerichtung">
@@ -196,11 +197,12 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
 
     <div class="actions g-only">
       <button class="btn btn-primary" id="gramBtn">Grammatik üben (10 Fragen)</button>
+      <button class="btn btn-ghost" id="gramMissBtn">Fehler wiederholen</button>
     </div>
     <div class="actions v-only">
       <button class="btn btn-primary" id="startBtn">Heute lernen</button>
       <div class="row">
-        <button class="btn btn-ghost" id="weakBtn">Schwierige Wörter wiederholen</button>
+        <button class="btn btn-ghost" id="weakBtn">Fehlerliste wiederholen</button>
         <button class="btn btn-ghost" id="freeBtn">10 zufällige Fragen</button>
       </div>
     </div>
@@ -229,6 +231,7 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
       <div class="label" id="exLabel">Beispiel</div>
       <div class="ex-de"><button class="say sm" id="exSay" aria-label="Beispielsatz anhören"></button><span id="exDe"></span></div>
       <div class="ex-en" id="exEn"></div>
+      <div class="ex-tr" id="exTr" hidden></div>
     </div>
     <div class="kbd">Tastatur: 1–4 antworten · Enter weiter · S Aussprache · B Beispielsatz</div>
   </section>
@@ -253,7 +256,7 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
 
 <script>
 const DATA = /*DATA*/[];
-const W = DATA.map(([de,en,ja,t,exde,exen,lv],id)=>({id,de,en,ja,t,exde,exen,lv}));
+const W = DATA.map(([de,en,ja,t,exde,exen,lv,pl],id)=>({id,de,en,ja,t,exde,exen,lv,pl}));
 const ans = w => S.lang==='ja' ? w.ja : w.en;
 const INTERVALS = [0,1,2,4,8,16,32]; // days, by level
 const MAX = 6;
@@ -261,10 +264,18 @@ const KEY = 'wortschatz-b1-v1';
 const $ = id => document.getElementById(id);
 
 function today(){ const d=new Date(); return Math.floor((d.getTime()-d.getTimezoneOffset()*60000)/86400000); }
-function fresh(){ return {cards:{}, rcards:{}, mode:'vocab', gtype:'mix', gstats:{}, dir:'de', auto:true, goal:20, type:'all', levels:['A1','A2','B1'], lang:'en', streak:0, lastDay:null, day:today(), dayCount:0}; }
+function fresh(){ return {cards:{}, rcards:{}, missV:{de:[], rev:[]}, missG:[], mode:'vocab', gtype:'mix', gstats:{}, dir:'de', auto:true, goal:20, type:'all', levels:['A1','A2','B1'], lang:'en', streak:0, lastDay:null, day:today(), dayCount:0}; }
 let S = fresh();
 try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(fresh(), JSON.parse(raw)); }catch(e){}
 const C = () => S.dir==='rev' ? S.rcards : S.cards;
+// one-time: start the review list with words that were answered wrong before this list existed
+if(!S.missSeeded){
+  for(const [dir, cards] of [['de', S.cards], ['rev', S.rcards]])
+    for(const id in cards){ const c = cards[id]; if(c.ok < c.n && c.b <= 1 && !S.missV[dir].includes(+id)) S.missV[dir].push(+id); }
+  S.missSeeded = true;
+}
+const MV = () => S.missV[S.dir==='rev' ? 'rev' : 'de'];
+const gKey = g => g.type + '|' + g.full;
 const REV = () => S.dir==='rev';
 const key = w => REV() ? w.de : ans(w);   // the correct option text
 
@@ -316,7 +327,7 @@ function distractors(w){
 
 /* ---------- grammar ---------- */
 const pick = a => a[Math.random()*a.length|0];
-const G_TYPES = {genus:'Genus', kasus:'Artikel', adj:'Adjektivendungen'};
+const G_TYPES = {genus:'Genus', kasus:'Artikel', adj:'Adjektivendungen', plural:'Plural'};
 const PLURAL_ONLY = new Set(['Abgase','Daten','Eltern','Ferien','Geschwister','Jeans','Kenntnisse','Kosten','Lebensmittel','Leute','Personalien','Pommes','Schulden','Senioren','Unterlagen','Zutaten','Geschäftsleute','Fachleute','Medien','Zinsen']);
 // nouns that decline like adjectives (ein Angestellter, einen Angestellten)
 const ADJ_NOUNS = new Set(['Angehörige','Angestellte','Beamte','Bekannte','Erwachsene','Jugendliche','Kranke','Verwandte','Auszubildende','Tote','Deutsche','Studierende']);
@@ -330,21 +341,46 @@ const DEF = {nom:{m:'der',f:'die',n:'das'}, akk:{m:'den',f:'die',n:'das'}, dat:{
 const EIN = {nom:{m:'ein',f:'eine',n:'ein'}, akk:{m:'einen',f:'eine',n:'ein'}, dat:{m:'einem',f:'einer',n:'einem'}};
 const KIND_NAME = {def:'bestimmter Artikel', ein:'ein', kein:'kein', mein:'mein'};
 const ADJS = ['neu','alt','groß','klein','schön','gut','wichtig','interessant'];
-// sentence frames: c = case, k = article kinds that read naturally in the frame
+const ADJ_TR = {neu:['new','新しい'], alt:['old','古い'], groß:['big','大きな'], klein:['small','小さな'], schön:['beautiful','きれいな'], gut:['good','良い'], wichtig:['important','重要な'], interessant:['interesting','面白い']};
+// sentence frames: c = case, k = article kinds that read naturally in the frame,
+// en / ja build the translation from p = {np: "the new key", ind: "a new key", ja: "私の新しい鍵", n: "鍵", neg: kein?}
 const FRAMES = [
-  {c:'nom', t:'Wo ist {X}?', cue:'Subjekt → Nominativ', k:['def','mein']},
-  {c:'nom', t:'Das ist {X}.', cue:'sein → Nominativ', k:['def','ein','kein','mein']},
-  {c:'nom', t:'Hier ist {X}.', cue:'sein → Nominativ', k:['def','ein','kein','mein']},
-  {c:'akk', t:'Ich suche {X}.', cue:'suchen + Akkusativ', k:['def','ein','mein']},
-  {c:'akk', t:'Hast du {X}?', cue:'haben + Akkusativ', k:['def','ein','kein']},
-  {c:'akk', t:'Wir brauchen {X}.', cue:'brauchen + Akkusativ', k:['def','ein','kein']},
-  {c:'akk', t:'Das ist für {X}.', cue:'für + Akkusativ', k:['def','ein','mein']},
-  {c:'akk', t:'Wir sprechen über {X}.', cue:'über (Thema) + Akkusativ', k:['def','ein','mein']},
-  {c:'dat', t:'Was ist mit {X}?', cue:'mit + Dativ', k:['def','ein','mein']},
-  {c:'dat', t:'Ich habe ein Problem mit {X}.', cue:'mit + Dativ', k:['def','ein','mein']},
-  {c:'dat', t:'Wir sind mit {X} zufrieden.', cue:'mit + Dativ', k:['def','ein','mein']},
-  {c:'dat', t:'Was hältst du von {X}?', cue:'von + Dativ', k:['ein','mein']},
+  {c:'nom', t:'Wo ist {X}?', cue:'Subjekt → Nominativ', k:['def','mein'],
+   en:p=>`Where is ${p.np}?`, ja:p=>`${p.ja}はどこですか？`},
+  {c:'nom', t:'Das ist {X}.', cue:'sein → Nominativ', k:['def','ein','kein','mein'],
+   en:p=>p.neg ? `This is not ${p.ind}.` : `This is ${p.np}.`, ja:p=>p.neg ? `これは${p.ja}ではありません。` : `これは${p.ja}です。`},
+  {c:'nom', t:'Hier ist {X}.', cue:'sein → Nominativ', k:['def','ein','kein','mein'],
+   en:p=>p.neg ? `There is no ${p.bare} here.` : `Here is ${p.np}.`, ja:p=>p.neg ? `ここには${p.ja}はありません。` : `ここに${p.ja}があります。`},
+  {c:'akk', t:'Ich suche {X}.', cue:'suchen + Akkusativ', k:['def','ein','mein'],
+   en:p=>`I'm looking for ${p.np}.`, ja:p=>`${p.ja}を探しています。`},
+  {c:'akk', t:'Hast du {X}?', cue:'haben + Akkusativ', k:['def','ein','kein'],
+   en:p=>p.neg ? `Don't you have ${p.ind}?` : `Do you have ${p.np}?`, ja:p=>p.neg ? `${p.ja}を持っていないの？` : `${p.ja}を持っていますか？`},
+  {c:'akk', t:'Wir brauchen {X}.', cue:'brauchen + Akkusativ', k:['def','ein','kein'],
+   en:p=>p.neg ? `We don't need ${p.ind}.` : `We need ${p.np}.`, ja:p=>p.neg ? `${p.ja}は必要ありません。` : `${p.ja}が必要です。`},
+  {c:'akk', t:'Das ist für {X}.', cue:'für + Akkusativ', k:['def','ein','mein'],
+   en:p=>`This is for ${p.np}.`, ja:p=>`これは${p.ja}のためのものです。`},
+  {c:'akk', t:'Wir sprechen über {X}.', cue:'über (Thema) + Akkusativ', k:['def','ein','mein'],
+   en:p=>`We're talking about ${p.np}.`, ja:p=>`${p.ja}について話しています。`},
+  {c:'dat', t:'Was ist mit {X}?', cue:'mit + Dativ', k:['def','ein','mein'],
+   en:p=>`What about ${p.np}?`, ja:p=>`${p.ja}はどうなっていますか？`},
+  {c:'dat', t:'Ich habe ein Problem mit {X}.', cue:'mit + Dativ', k:['def','ein','mein'],
+   en:p=>`I have a problem with ${p.np}.`, ja:p=>`${p.ja}に問題があります。`},
+  {c:'dat', t:'Wir sind mit {X} zufrieden.', cue:'mit + Dativ', k:['def','ein','mein'],
+   en:p=>`We are happy with ${p.np}.`, ja:p=>`${p.ja}に満足しています。`},
+  {c:'dat', t:'Was hältst du von {X}?', cue:'von + Dativ', k:['ein','mein'],
+   en:p=>`What do you think of ${p.np}?`, ja:p=>`${p.ja}をどう思いますか？`},
 ];
+// first meaning only: "bank, bench" -> "bank", "銀行、ベンチ" -> "銀行"
+const firstEn = s => s.replace(/\(.*?\)/g,'').split(/[,;]/)[0].trim();
+const firstJa = s => s.replace(/（.*?）|\(.*?\)/g,'').split(/[、，,]/)[0].trim();
+const aAn = s => (/^[aeiou]/i.test(s) ? 'an ' : 'a ') + s;
+function translate(f, kind, n, adj){
+  const bare = (adj ? ADJ_TR[adj][0] + ' ' : '') + firstEn(n.w.en);
+  const det = {def:'the ', mein:'my ', ein:'', kein:''}[kind];
+  const p = {bare, ind:aAn(bare), np: kind==='ein' ? aAn(bare) : det + bare, neg: kind==='kein',
+             ja:(kind==='mein' ? '私の' : '') + (adj ? ADJ_TR[adj][1] : '') + firstJa(n.w.ja)};
+  return `${f.en(p)}\n${f.ja(p)}`;
+}
 const GENUS_TIPS = [
   [/(ung|heit|keit|schaft|ion|tät|ik)$/, 'die', 'Nomen auf -ung, -heit, -keit, -schaft, -ion, -tät, -ik sind feminin.'],
   [/(chen|lein|ment|um)$/, 'das', 'Nomen auf -chen, -lein, -ment, -um sind meistens neutral.'],
@@ -360,7 +396,7 @@ function nouns(){
     for(const w of W){
       const m = w.de.match(/^(der|die|das) ([A-ZÄÖÜ]\S*)$/);
       if(!m || arts[m[2]].size > 1 || PLURAL_ONLY.has(m[2])) continue;   // skip plural-only and ambiguous nouns
-      NOUNS.push({w, art:m[1], noun:m[2], g:GENDER[m[1]], adjNoun:ADJ_NOUNS.has(m[2])});
+      NOUNS.push({w, art:m[1], noun:m[2], g:GENDER[m[1]], adjNoun:ADJ_NOUNS.has(m[2]), pl:w.pl || ''});
     }
   }
   return NOUNS.filter(n => S.levels.includes(n.w.lv));
@@ -388,39 +424,70 @@ function adjEnding(kind, cas, g){
 const gap = '<span class="gap">___</span>';
 const weakNote = (n, form) => form!==n.noun ? ` · n-Deklination: ${n.noun} → ${form}` : '';
 
+const meaning = w => `${firstEn(w.en)} / ${firstJa(w.ja)}`;
 function qGenus(n){
   const tip = GENUS_TIPS.find(([re, art]) => re.test(n.noun) && art===n.art);
-  return {type:'genus', prompt:esc(n.noun), hint:`Welcher Artikel? (${S.lang==='ja' ? n.w.ja : n.w.en})`,
-    opts:['der','die','das'], correct:n.art, full:n.w.de,
-    explain:`${n.art} ${n.noun} · ${GNAME[n.g]}` + (tip ? ` · Tipp: ${tip[2]}` : ''), w:n.w};
+  return {type:'genus', prompt:esc(n.noun), hint:`Welcher Artikel? (${meaning(n.w)})`,
+    opts:['der','die','das'], correct:n.art, full:n.w.de, tr:`${n.w.en}\n${n.w.ja}`,
+    explain:`${n.art} ${n.noun} · ${GNAME[n.g]}` + (tip ? ` · Tipp: ${tip[2]}` : ''), wid:n.w.id};
 }
 function qKasus(n){
   const f = pick(FRAMES), kind = pick(f.k);
   const correct = article(kind, f.c, n.g), form = nounForm(n, f.c);
   const base = kind==='def' ? ['der','die','das','den','dem'] : ['ein','eine','einen','einem','einer'].map(x => kind==='ein' ? x : kind[0]+x);
   const opts = shuffle([correct, ...shuffle(base.filter(x => x!==correct)).slice(0,3)]);
-  return {type:'kasus', prompt:esc(f.t).replace('{X}', `${gap} ${esc(form)}`), hint:'Welcher Artikel passt?',
-    opts, correct, full:f.t.replace('{X}', `${correct} ${form}`),
-    explain:`${f.cue} · ${n.art} ${n.noun} (${GNAME[n.g]}) → ${CASES[f.c]}: ${correct}` + weakNote(n, form), w:n.w};
+  return {type:'kasus', prompt:esc(f.t).replace('{X}', `${gap} ${esc(form)}`), hint:`Welcher Artikel passt? (${n.noun} = ${meaning(n.w)})`,
+    opts, correct, full:f.t.replace('{X}', `${correct} ${form}`), tr:translate(f, kind, n, null),
+    explain:`${f.cue} · ${n.art} ${n.noun} (${GNAME[n.g]}) → ${CASES[f.c]}: ${correct}` + weakNote(n, form), wid:n.w.id};
 }
 function qAdj(n){
   const f = pick(FRAMES), kind = pick(f.k), adj = pick(ADJS);
   const art = article(kind, f.c, n.g), form = nounForm(n, f.c), end = adjEnding(kind, f.c, n.g);
   const correct = adj + end;
-  return {type:'adj', prompt:esc(f.t).replace('{X}', `${esc(art)} ${esc(adj)}${gap} ${esc(form)}`), hint:'Welche Endung passt?',
-    opts:['e','en','er','es'].map(e => adj + e), correct, full:f.t.replace('{X}', `${art} ${correct} ${form}`),
-    explain:`${f.cue} · ${GNAME[n.g]} · ${KIND_NAME[kind]} → -${end}` + weakNote(n, form), w:n.w};
+  return {type:'adj', prompt:esc(f.t).replace('{X}', `${esc(art)} ${esc(adj)}${gap} ${esc(form)}`), hint:`Welche Endung passt? (${n.noun} = ${meaning(n.w)})`,
+    opts:['e','en','er','es'].map(e => adj + e), correct, full:f.t.replace('{X}', `${art} ${correct} ${form}`), tr:translate(f, kind, n, adj),
+    explain:`${f.cue} · ${n.art} ${n.noun} (${GNAME[n.g]}) · ${KIND_NAME[kind]} → -${end}` + weakNote(n, form), wid:n.w.id};
+}
+function umlaut(w){
+  for(let i=w.length-1; i>=0; i--){
+    const c = w[i].toLowerCase();
+    if(!'aou'.includes(c)) continue;
+    if(c==='u' && i>0 && w[i-1].toLowerCase()==='a') return w.slice(0,i-1) + (w[i-1]==='A' ? 'Ä' : 'ä') + w.slice(i);   // au -> äu
+    const m = {a:'ä', o:'ö', u:'ü'}[c];
+    return w.slice(0,i) + (w[i]!==c ? m.toUpperCase() : m) + w.slice(i+1);
+  }
+  return null;
+}
+function pluralRule(noun, pl){
+  const u = umlaut(noun);
+  if(pl===noun) return 'ohne Endung (gleiche Form)';
+  if(pl.startsWith(noun)) return `Endung -${pl.slice(noun.length)}`;
+  if(u && pl===u) return 'nur Umlaut';
+  if(u && pl.startsWith(u)) return `Umlaut + -${pl.slice(u.length)}`;
+  return 'besondere Pluralform';
+}
+function qPlural(n){
+  const noun = n.noun, u = umlaut(noun);
+  const cands = new Set([noun, noun+'e', /(e|el|er)$/.test(noun) ? noun+'n' : noun+'en', noun+'er', noun+'s', noun+'n', noun+'se']);
+  if(u) ['', 'e', 'er'].forEach(s => cands.add(u + s));
+  cands.delete(n.pl);
+  const opts = shuffle([n.pl, ...shuffle([...cands]).slice(0,3)]).map(x => 'die ' + x);
+  return {type:'plural', prompt:splitArt(n.w.de), hint:`Wie heißt der Plural? (${meaning(n.w)})`,
+    opts, correct:'die ' + n.pl, full:`${n.w.de} – die ${n.pl}`, tr:`${n.w.en}\n${n.w.ja}`,
+    explain:`Plural: ${pluralRule(noun, n.pl)}`, wid:n.w.id};
 }
 function buildGrammar(count=10){
   const all = nouns(); if(!all.length) return [];
-  const types = S.gtype==='mix' ? ['genus','kasus','adj'] : [S.gtype];
+  const types = S.gtype==='mix' ? ['genus','kasus','adj','plural'] : [S.gtype];
+  const fits = {genus:n=>true, kasus:n=>!n.adjNoun, adj:n=>!n.adjNoun, plural:n=>!!n.pl};
+  const make = {genus:qGenus, kasus:qKasus, adj:qAdj, plural:qPlural};
   const out = [], used = new Set();
   for(let guard=0; out.length<count && guard<500; guard++){
     const t = pick(types);
-    const n = pick(t==='genus' ? all : all.filter(x => !x.adjNoun));
+    const n = pick(all.filter(fits[t]));
     if(!n || used.has(n.w.id)) continue;
     used.add(n.w.id);
-    out.push(t==='genus' ? qGenus(n) : t==='kasus' ? qKasus(n) : qAdj(n));
+    out.push(make[t](n));
   }
   return out;
 }
@@ -457,12 +524,15 @@ function renderHome(){
   for(const b of $('gtSeg').children) b.setAttribute('aria-pressed', String(b.dataset.v===S.gtype));
   const pct = k => { const s=S.gstats[k]; return s && s.n ? Math.round(s.ok/s.n*100)+'%' : '–'; };
   $('gsGenus').textContent = pct('genus'); $('gsKasus').textContent = pct('kasus'); $('gsAdj').textContent = pct('adj');
-  $('gsN').textContent = Object.values(S.gstats).reduce((a,s)=>a+s.n, 0);
+  $('gsPlural').textContent = pct('plural');
+  for(const k of ['Genus','Kasus','Adj','Plural']){ const s=S.gstats[k.toLowerCase()]; $('gs'+k).title = s ? `${s.ok} von ${s.n} richtig` : ''; }
+  $('gramMissBtn').disabled = !S.missG.length;
+  $('gramMissBtn').textContent = S.missG.length ? `Fehlerliste wiederholen (${S.missG.length})` : 'Fehlerliste ist leer';
   $('gramBtn').disabled = !nouns().length;
   const left = S.goal - S.dayCount;
   $('startBtn').textContent = left>0 ? `Heute lernen (noch ${left} ${left===1 ? 'Frage' : 'Fragen'})` : 'Ziel erreicht! Noch eine Runde lernen';
-  const weak = P.filter(w=>{const c=C()[w.id]; return c && c.b<=1;}).length;
-  $('weakBtn').disabled = weak===0; $('weakBtn').textContent = weak ? `Schwierige Wörter wiederholen (${weak})` : 'Noch keine schwierigen Wörter';
+  const nMiss = MV().length;
+  $('weakBtn').disabled = nMiss===0; $('weakBtn').textContent = nMiss ? `Fehlerliste wiederholen (${nMiss})` : 'Fehlerliste ist leer';
   show('home');
 }
 $('goalSeg').addEventListener('click',e=>{ const v=e.target.dataset?.v; if(v){ S.goal=+v; save(); renderHome(); }});
@@ -499,35 +569,43 @@ function buildDaily(){
   if(list.length<n){ const rest=shuffle(P.filter(w=>!list.includes(w))); list=list.concat(rest.slice(0,n-list.length)); }
   return shuffle(list);
 }
-let lastKind = 'vocab';
-function start(words){
+let lastKind = 'vocab', lastReview = false;
+const MAX_REVIEW = 20;
+function start(words, review=false){
   if(!words.length) return;
-  lastKind = 'vocab';
-  Q={items:words.map(w=>({w,retry:false})), i:0, score:0, total:words.length, missed:[], answered:false};
+  lastKind = 'vocab'; lastReview = review;
+  Q={items:words.map(w=>({w, review})), i:0, score:0, total:words.length, missed:[], answered:false};
   show('quiz'); renderQ();
 }
-function startGrammar(qs){
+function startGrammar(qs, review=false){
   if(!qs.length) return;
-  lastKind = 'gram';
-  Q={items:qs.map(g=>({g,retry:false})), i:0, score:0, total:qs.length, missed:[], answered:false};
+  lastKind = 'gram'; lastReview = review;
+  Q={items:qs.map(g=>({g, review})), i:0, score:0, total:qs.length, missed:[], answered:false};
   show('quiz'); renderQ();
 }
+const vocabReview = () => shuffle(MV().map(id => W[id]).filter(Boolean)).slice(0, MAX_REVIEW);
+// saved grammar mistakes come back with their options in a new order
+const gramReview = () => shuffle(S.missG.slice()).slice(0, MAX_REVIEW).map(g => ({...g, opts: g.type==='genus' ? g.opts : shuffle(g.opts.slice())}));
 $('startBtn').onclick=()=>start(buildDaily());
 $('gramBtn').onclick=()=>startGrammar(buildGrammar());
-$('weakBtn').onclick=()=>start(shuffle(pool().filter(w=>{const c=C()[w.id]; return c && c.b<=1;})).slice(0,15));
+$('weakBtn').onclick=()=>start(vocabReview(), true);
+$('gramMissBtn').onclick=()=>startGrammar(gramReview(), true);
 $('freeBtn').onclick=()=>start(shuffle(pool().slice()).slice(0,10));
 $('quitBtn').onclick=()=>{ Q=null; renderHome(); };
 
+function resetAnswerArea(){
+  $('fb').innerHTML=''; $('fb').className='fb-msg'; $('nextBtn').hidden=true; $('exBox').hidden=true; $('exTr').hidden=true;
+}
 function renderQ(){
   const it=Q.items[Q.i];
   Q.answered=false;
-  const done = Q.items.slice(0,Q.i).filter(x=>!x.retry).length;
-  $('qCount').textContent = `${Math.min(done+1,Q.total)}/${Q.total}`;
-  $('qBar').style.width = (done/Q.total*100)+'%';
+  $('qCount').textContent = `${Q.i+1}/${Q.total}`;
+  $('qBar').style.width = (Q.i/Q.total*100)+'%';
+  resetAnswerArea();
   if(it.g) return renderGrammarQ(it);
   const w=it.w; const c=C()[w.id];
   const kind = `${w.lv} · ` + {n:'Nomen',v:'Verb',o:'Andere'}[w.t];
-  $('qTag').innerHTML = `${kind}` + (it.retry ? ' <span class="retry">Noch einmal</span>' : !c ? ' <span class="new">NEW</span>' : ` · Stufe ${Math.min(c.b,MAX)}`);
+  $('qTag').innerHTML = `${kind}` + (it.review ? ' <span class="retry">Fehlerliste</span>' : !c ? ' <span class="new">NEW</span>' : ` · Stufe ${Math.min(c.b,MAX)}`);
   if(REV()){
     $('qWord').className='word trans'; $('qWord').textContent = ans(w);
     $('qHint').textContent = 'Wie sagt man das auf Deutsch?';
@@ -541,39 +619,44 @@ function renderQ(){
   const opts = shuffle([key(w), ...distractors(w)]);
   it.opts = opts;
   $('opts').innerHTML = opts.map((o,i)=>`<button class="opt" id="opt${i}" data-i="${i}"><span class="k">${i+1}</span><span class="t">${REV() ? splitArt(o) : esc(o)}</span></button>`).join('');
-  $('fb').innerHTML=''; $('fb').className='fb-msg'; $('nextBtn').hidden=true; $('exBox').hidden=true;
 }
 function renderGrammarQ(it){
-  const g = it.g;
-  $('qTag').innerHTML = `Grammatik · ${G_TYPES[g.type]} · ${g.w.lv}` + (it.retry ? ' <span class="retry">Noch einmal</span>' : '');
-  $('qWord').className = g.type==='genus' ? 'word' : 'word sent';
+  const g = it.g, w = W[g.wid];
+  $('qTag').innerHTML = `Grammatik · ${G_TYPES[g.type]} · ${w ? w.lv : ''}` + (it.review ? ' <span class="retry">Fehlerliste</span>' : '');
+  $('qWord').className = (g.type==='genus' || g.type==='plural') ? 'word' : 'word sent';
   $('qWord').innerHTML = g.prompt;
   $('qHint').textContent = g.hint;
   $('sayBtn').hidden = true;
   it.opts = g.opts;
   $('opts').innerHTML = g.opts.map((o,i)=>`<button class="opt" id="opt${i}" data-i="${i}"><span class="k">${i+1}</span><span class="t">${esc(o)}</span></button>`).join('');
-  $('fb').innerHTML=''; $('fb').className='fb-msg'; $('nextBtn').hidden=true; $('exBox').hidden=true;
 }
 function countAnswer(){
   const t=today(); rollDay(); S.dayCount++;
   if(S.lastDay!==t){ S.streak = S.lastDay===t-1 ? S.streak+1 : 1; S.lastDay=t; }
 }
+function markOptions(it, i, correct){
+  [...$('opts').children].forEach((b,j)=>{ b.disabled=true;
+    if(it.opts[j]===correct) b.classList.add('correct'); else if(j===i) b.classList.add('wrong'); else b.classList.add('dim'); });
+}
 function answerGrammar(it, i){
   const g = it.g, ok = it.opts[i]===g.correct;
-  [...$('opts').children].forEach((b,j)=>{ b.disabled=true;
-    if(it.opts[j]===g.correct) b.classList.add('correct'); else if(j===i) b.classList.add('wrong'); else b.classList.add('dim'); });
-  if(!it.retry){
-    const st = S.gstats[g.type] = S.gstats[g.type] || {n:0, ok:0};
-    st.n++; if(ok) st.ok++;
-    countAnswer(); save();
-    if(ok) Q.score++; else Q.missed.push(it);
-    if(!ok) Q.items.splice(Math.min(Q.items.length, Q.i+4), 0, {g, retry:true});
+  markOptions(it, i, g.correct);
+  // every answer counts toward the statistics; nothing is repeated within the round
+  const st = S.gstats[g.type] = S.gstats[g.type] || {n:0, ok:0};
+  st.n++; if(ok) st.ok++;
+  const k = gKey(g);
+  if(ok){ Q.score++; if(it.review) S.missG = S.missG.filter(x => gKey(x)!==k); }
+  else {
+    Q.missed.push(it);
+    if(!S.missG.some(x => gKey(x)===k)){ S.missG.push(g); if(S.missG.length > 300) S.missG.shift(); }
   }
+  countAnswer(); save();
   const fb=$('fb');
-  if(ok){ fb.className='fb-msg ok'; fb.innerHTML='Richtig!'; }
-  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>Richtig: ${esc(g.correct)}</small>`; }
+  if(ok){ fb.className='fb-msg ok'; fb.innerHTML = it.review ? 'Richtig! Aus der Fehlerliste entfernt.' : 'Richtig!'; }
+  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>Richtig: ${esc(g.correct)} · in der Fehlerliste gespeichert</small>`; }
   $('exLabel').textContent = 'Regel';
   $('exDe').textContent = g.full; $('exEn').textContent = g.explain;
+  $('exTr').textContent = g.tr || ''; $('exTr').hidden = !g.tr;
   $('exSay').hidden = !SPEAK_OK; $('exBox').hidden = false;
   if(S.auto) speak(g.full);
   $('nextBtn').hidden=false; $('nextBtn').focus({preventScroll:true});
@@ -586,19 +669,17 @@ function answer(i){
   if(it.g) return answerGrammar(it, i);
   const w=it.w; const ok = it.opts[i]===key(w);
   if(REV()){ $('sayBtn').hidden = !SPEAK_OK; if(S.auto) speak(w.de); }
-  [...$('opts').children].forEach((b,j)=>{ b.disabled=true;
-    if(it.opts[j]===key(w)) b.classList.add('correct'); else if(j===i) b.classList.add('wrong'); else b.classList.add('dim'); });
-  if(!it.retry){
-    const t=today(); const c=C()[w.id] || {b:0,d:t,n:0,ok:0};
-    c.n++; if(ok){ c.ok++; c.b=Math.min(c.b+1,MAX); c.d=t+INTERVALS[c.b]; } else { c.b=1; c.d=t+1; }
-    C()[w.id]=c;
-    countAnswer(); save();
-    if(ok) Q.score++; else Q.missed.push(w);
-  }
-  if(!ok && !it.retry){ const pos=Math.min(Q.items.length, Q.i+4); Q.items.splice(pos,0,{w,retry:true}); }
+  markOptions(it, i, key(w));
+  const t=today(); const c=C()[w.id] || {b:0,d:t,n:0,ok:0};
+  c.n++; if(ok){ c.ok++; c.b=Math.min(c.b+1,MAX); c.d=t+INTERVALS[c.b]; } else { c.b=1; c.d=t+1; }
+  C()[w.id]=c;
+  const list = MV();
+  if(ok){ Q.score++; const k=list.indexOf(w.id); if(k>=0) list.splice(k,1); }
+  else { Q.missed.push(w); if(!list.includes(w.id)) list.push(w.id); }
+  countAnswer(); save();
   const fb=$('fb');
-  if(ok){ fb.className='fb-msg ok'; fb.innerHTML='Richtig!'; }
-  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>${esc(w.de)} = ${esc(w.ja)} / ${esc(w.en)}</small>`; }
+  if(ok){ fb.className='fb-msg ok'; fb.innerHTML = it.review ? 'Richtig! Aus der Fehlerliste entfernt.' : 'Richtig!'; }
+  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>${esc(w.de)} = ${esc(w.ja)} / ${esc(w.en)} · in der Fehlerliste gespeichert</small>`; }
   $('nextBtn').hidden=false; $('nextBtn').focus({preventScroll:true});
   if(w.exde){
     $('exLabel').textContent = 'Beispiel';
@@ -615,19 +696,24 @@ $('nextBtn').onclick=next;
 
 function finish(){
   const q=Q; Q=null;
-  $('rScore').innerHTML = `${q.score}<span> / ${q.total}</span>`;
   const pct = q.total ? q.score/q.total : 0;
-  $('rMsg').textContent = pct===1 ? 'Alles richtig. Sehr gut!' : pct>=.8 ? 'Gut gemacht!' : pct>=.5 ? 'Die falschen Wörter kommen morgen wieder.' : 'Übe schwierige Wörter mit „Schwierige Wörter wiederholen“.';
+  $('rScore').innerHTML = `${q.score}<span> / ${q.total} richtig (${Math.round(pct*100)} %)</span>`;
+  const left = lastKind==='gram' ? S.missG.length : MV().length;
+  const listNote = left ? ` In der Fehlerliste: ${left}.` : ' Die Fehlerliste ist leer.';
+  $('rMsg').textContent = (pct===1 ? 'Alles richtig. Sehr gut!' : pct>=.8 ? 'Gut gemacht!' : 'Die Fehler kannst du später mit der Fehlerliste wiederholen.') + listNote;
   $('rMissedLabel').textContent = lastKind==='gram' ? 'Fehler – so ist es richtig' : 'Falsch beantwortete Wörter';
   if(lastKind==='gram'){
-    $('rMissed').innerHTML = q.missed.length ? q.missed.map(it=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(it.g.full)}" aria-label="Satz anhören">${SPK}</button>` : ''}<span>${esc(it.g.full)}</span></span><span class="en">${esc(it.g.explain)}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
-    $('rMsg').textContent = pct===1 ? 'Alles richtig. Sehr gut!' : pct>=.8 ? 'Gut gemacht!' : 'Lies die Regeln unten und übe noch eine Runde.';
-    return show('result');
+    $('rMissed').innerHTML = q.missed.length ? q.missed.map(it=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(it.g.full)}" aria-label="Satz anhören">${SPK}</button>` : ''}<span>${esc(it.g.full)}</span></span><span class="en">${esc(it.g.explain)}${it.g.tr ? '<br>' + esc(it.g.tr).replace('\n','<br>') : ''}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
+  } else {
+    $('rMissed').innerHTML = q.missed.length ? q.missed.map(w=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(w.de)}" aria-label="Aussprache: ${esc(w.de)}">${SPK}</button>` : ''}<span>${splitArt(w.de)}</span></span><span class="en">${esc(w.ja)}<br>${esc(w.en)}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
   }
-  $('rMissed').innerHTML = q.missed.length ? q.missed.map(w=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(w.de)}" aria-label="Aussprache: ${esc(w.de)}">${SPK}</button>` : ''}<span>${splitArt(w.de)}</span></span><span class="en">${esc(w.ja)}<br>${esc(w.en)}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
+  $('againBtn').textContent = lastReview ? (left ? `Fehlerliste weiter wiederholen (${left})` : 'Neue Runde') : 'Noch eine Runde';
   show('result');
 }
-$('againBtn').onclick=()=> lastKind==='gram' ? startGrammar(buildGrammar()) : start(buildDaily());
+$('againBtn').onclick=()=>{
+  if(lastKind==='gram') return lastReview && S.missG.length ? startGrammar(gramReview(), true) : startGrammar(buildGrammar());
+  return lastReview && MV().length ? start(vocabReview(), true) : start(buildDaily());
+};
 $('homeBtn').onclick=renderHome;
 
 document.addEventListener('keydown',e=>{
