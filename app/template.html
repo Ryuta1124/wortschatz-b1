@@ -44,6 +44,8 @@ h1 small{font-family:var(--f-mono);font-weight:500;font-size:.72rem;color:var(--
 .bar{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .35s ease}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stats.five{grid-template-columns:repeat(5,1fr);gap:6px}
+.stats.five .stat{padding:10px 4px}
 .stat{background:var(--sunk);border-radius:10px;padding:10px 8px;text-align:center;min-width:0}
 .stat b{display:block;font-family:var(--f-mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
 .stat em{font-style:normal;font-size:.7rem;color:var(--muted)}
@@ -144,11 +146,12 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
       <div class="bar"><i id="todayBar" style="width:0%"></i></div>
     </div>
 
-    <div class="stats g-only">
+    <div class="stats five g-only">
       <div class="stat"><b id="gsGenus">–</b><em>Genus</em></div>
       <div class="stat"><b id="gsKasus">–</b><em>Artikel</em></div>
       <div class="stat"><b id="gsAdj">–</b><em>Endungen</em></div>
       <div class="stat"><b id="gsPlural">–</b><em>Plural</em></div>
+      <div class="stat"><b id="gsPraep">–</b><em>Präp.</em></div>
     </div>
 
     <div class="stats v-only">
@@ -167,7 +170,7 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
     <div class="panel" style="display:flex;flex-direction:column;gap:16px">
       <div class="setting g-only"><div class="label">Übung</div>
         <div class="seg" id="gtSeg" role="group" aria-label="Übung">
-          <button data-v="mix">Gemischt</button><button data-v="genus">der/die/das</button><button data-v="kasus">Artikel im Kasus</button><button data-v="adj">Adjektivendungen</button><button data-v="plural">Plural</button>
+          <button data-v="mix">Gemischt</button><button data-v="genus">der/die/das</button><button data-v="kasus">Artikel im Kasus</button><button data-v="adj">Adjektivendungen</button><button data-v="plural">Plural</button><button data-v="praep">Präpositionen</button>
         </div></div>
       <div class="setting v-only"><div class="label">Abfragerichtung</div>
         <div class="seg" id="dirSeg" role="group" aria-label="Abfragerichtung">
@@ -327,7 +330,7 @@ function distractors(w){
 
 /* ---------- grammar ---------- */
 const pick = a => a[Math.random()*a.length|0];
-const G_TYPES = {genus:'Genus', kasus:'Artikel', adj:'Adjektivendungen', plural:'Plural'};
+const G_TYPES = {genus:'Genus', kasus:'Artikel', adj:'Adjektivendungen', plural:'Plural', praep:'Präpositionen'};
 const PLURAL_ONLY = new Set(['Abgase','Daten','Eltern','Ferien','Geschwister','Jeans','Kenntnisse','Kosten','Lebensmittel','Leute','Personalien','Pommes','Schulden','Senioren','Unterlagen','Zutaten','Geschäftsleute','Fachleute','Medien','Zinsen']);
 // nouns that decline like adjectives (ein Angestellter, einen Angestellten)
 const ADJ_NOUNS = new Set(['Angehörige','Angestellte','Beamte','Bekannte','Erwachsene','Jugendliche','Kranke','Verwandte','Auszubildende','Tote','Deutsche','Studierende']);
@@ -336,7 +339,7 @@ const WEAK = {herr:'n', mensch:'en', nachbar:'n', bauer:'n', held:'en', architek
 const NOT_WEAK_E = new Set(['Käse','Service']);
 const GENDER = {der:'m', die:'f', das:'n'};
 const GNAME = {m:'maskulin', f:'feminin', n:'neutral'};
-const CASES = {nom:'Nominativ', akk:'Akkusativ', dat:'Dativ'};
+const CASES = {nom:'Nominativ', akk:'Akkusativ', dat:'Dativ', gen:'Genitiv'};
 const DEF = {nom:{m:'der',f:'die',n:'das'}, akk:{m:'den',f:'die',n:'das'}, dat:{m:'dem',f:'der',n:'dem'}};
 const EIN = {nom:{m:'ein',f:'eine',n:'ein'}, akk:{m:'einen',f:'eine',n:'ein'}, dat:{m:'einem',f:'einer',n:'einem'}};
 const KIND_NAME = {def:'bestimmter Artikel', ein:'ein', kein:'kein', mein:'mein'};
@@ -424,6 +427,86 @@ function adjEnding(kind, cas, g){
 const gap = '<span class="gap">___</span>';
 const weakNote = (n, form) => form!==n.noun ? ` · n-Deklination: ${n.noun} → ${form}` : '';
 
+/* ---------- prepositions ---------- */
+// case each preposition takes: akk, dat, wechsel (akk or dat), gen
+const PREPS = {
+  durch:['akk','through','〜を通って','durch den Park'], für:['akk','for','〜のために','für meinen Bruder'], gegen:['akk','against','〜に反対して','gegen den Plan'],
+  ohne:['akk','without','〜なしで','ohne meine Brille'], um:['akk','around','〜の周りに','um den See'],
+  aus:['dat','out of, from','〜から','aus dem Haus'], bei:['dat','at, near','〜のところで','bei meiner Tante'], mit:['dat','with','〜と一緒に','mit dem Bus'],
+  nach:['dat','after, to','〜の後で','nach dem Essen'], seit:['dat','since','〜以来','seit einem Jahr'], von:['dat','from, of','〜から','von meinem Freund'],
+  zu:['dat','to','〜へ','zu meiner Schwester'], gegenüber:['dat','opposite','〜の向かいに','gegenüber dem Bahnhof'],
+  an:['wechsel','at, on','〜に接して','an der Wand / an die Wand'], auf:['wechsel','on','〜の上に','auf dem Tisch / auf den Tisch'],
+  hinter:['wechsel','behind','〜の後ろに','hinter dem Haus / hinter das Haus'], in:['wechsel','in','〜の中に','in der Stadt / in die Stadt'],
+  neben:['wechsel','next to','〜の隣に','neben dem Bett / neben das Bett'], über:['wechsel','over, above','〜の上方に','über dem Sofa / über das Sofa'],
+  unter:['wechsel','under','〜の下に','unter dem Stuhl / unter den Stuhl'], vor:['wechsel','in front of','〜の前に','vor dem Kino / vor das Kino'],
+  zwischen:['wechsel','between','〜の間に','zwischen den Häusern'],
+  wegen:['gen','because of','〜のために（理由）','wegen des Wetters'], trotz:['gen','despite','〜にもかかわらず','trotz des Regens'],
+  während:['gen','during','〜の間に','während der Arbeit'], statt:['gen','instead of','〜の代わりに','statt eines Briefes'],
+};
+const PREP_CASE_NAME = {akk:'Akkusativ', dat:'Dativ', wechsel:'Akkusativ oder Dativ', gen:'Genitiv'};
+const PREP_RULE = {
+  akk:p=>`${p} steht immer mit Akkusativ (wie durch, für, gegen, ohne, um).`,
+  dat:p=>`${p} steht immer mit Dativ (wie aus, bei, mit, nach, seit, von, zu).`,
+  wechsel:p=>`${p} ist eine Wechselpräposition: wo? (Ort) → Dativ, wohin? (Richtung) → Akkusativ.`,
+  gen:p=>`${p} steht mit Genitiv (wie wegen, trotz, während, statt).`,
+};
+// sentence frames with a preposition; prepositions that merge with the definite article
+// (im, ins, am, zum, vom, beim) only use ein / mein / kein here
+const P_FRAMES = [
+  {p:'für', c:'akk', t:'Ich interessiere mich für {X}.', k:['def','ein','mein'], en:p=>`I'm interested in ${p.np}.`, ja:p=>`${p.ja}に興味があります。`},
+  {p:'ohne', c:'akk', t:'Ich gehe nicht ohne {X}.', k:['def','mein'], en:p=>`I'm not going without ${p.np}.`, ja:p=>`${p.ja}なしでは行きません。`},
+  {p:'gegen', c:'akk', t:'Ich habe nichts gegen {X}.', k:['def','mein'], en:p=>`I have nothing against ${p.np}.`, ja:p=>`${p.ja}に反対ではありません。`},
+  {p:'mit', c:'dat', t:'Was machst du mit {X}?', k:['def','ein','mein'], en:p=>`What are you doing with ${p.np}?`, ja:p=>`${p.ja}をどうするの？`},
+  {p:'von', c:'dat', t:'Ich habe von {X} gehört.', k:['ein','mein'], en:p=>`I've heard about ${p.np}.`, ja:p=>`${p.ja}のことを聞きました。`},
+  {p:'bei', c:'dat', t:'Ich brauche Hilfe bei {X}.', k:['ein','mein'], en:p=>`I need help with ${p.np}.`, ja:p=>`${p.ja}のことで手伝いが必要です。`},
+  {p:'zu', c:'dat', t:'Ich habe eine Frage zu {X}.', k:['ein','mein'], en:p=>`I have a question about ${p.np}.`, ja:p=>`${p.ja}について質問があります。`},
+  {p:'neben', c:'dat', w:'wo', t:'Die Tasche steht neben {X}.', k:['def','ein','mein'], en:p=>`The bag is next to ${p.np}.`, ja:p=>`かばんは${p.ja}の隣にあります。`},
+  {p:'neben', c:'akk', w:'wohin', t:'Ich stelle die Tasche neben {X}.', k:['def','ein','mein'], en:p=>`I put the bag next to ${p.np}.`, ja:p=>`かばんを${p.ja}の隣に置きます。`},
+  {p:'auf', c:'dat', w:'wo', t:'Das Handy liegt auf {X}.', k:['def','ein','mein'], en:p=>`The phone is lying on ${p.np}.`, ja:p=>`携帯は${p.ja}の上にあります。`},
+  {p:'auf', c:'akk', w:'wohin', t:'Ich lege das Handy auf {X}.', k:['def','ein','mein'], en:p=>`I put the phone on ${p.np}.`, ja:p=>`携帯を${p.ja}の上に置きます。`},
+  {p:'unter', c:'dat', w:'wo', t:'Der Schlüssel liegt unter {X}.', k:['def','ein','mein'], en:p=>`The key is lying under ${p.np}.`, ja:p=>`鍵は${p.ja}の下にあります。`},
+  {p:'unter', c:'akk', w:'wohin', t:'Ich lege den Schlüssel unter {X}.', k:['def','ein','mein'], en:p=>`I put the key under ${p.np}.`, ja:p=>`鍵を${p.ja}の下に置きます。`},
+  {p:'hinter', c:'dat', w:'wo', t:'Die Katze sitzt hinter {X}.', k:['def','ein','mein'], en:p=>`The cat is sitting behind ${p.np}.`, ja:p=>`猫は${p.ja}の後ろに座っています。`},
+  {p:'hinter', c:'akk', w:'wohin', t:'Die Katze läuft hinter {X}.', k:['def','ein','mein'], en:p=>`The cat runs behind ${p.np}.`, ja:p=>`猫は${p.ja}の後ろへ走っていきます。`},
+  {p:'vor', c:'dat', w:'wo', t:'Wir warten vor {X}.', k:['def','ein','mein'], en:p=>`We're waiting in front of ${p.np}.`, ja:p=>`${p.ja}の前で待っています。`},
+  {p:'vor', c:'akk', w:'wohin', t:'Ich stelle das Fahrrad vor {X}.', k:['def','ein','mein'], en:p=>`I put the bike in front of ${p.np}.`, ja:p=>`自転車を${p.ja}の前に置きます。`},
+  {p:'über', c:'dat', w:'wo', t:'Die Lampe hängt über {X}.', k:['def','ein','mein'], en:p=>`The lamp is hanging above ${p.np}.`, ja:p=>`ランプは${p.ja}の上に掛かっています。`},
+  {p:'über', c:'akk', w:'wohin', t:'Ich hänge die Lampe über {X}.', k:['def','ein','mein'], en:p=>`I hang the lamp above ${p.np}.`, ja:p=>`ランプを${p.ja}の上に掛けます。`},
+  {p:'in', c:'dat', w:'wo', t:'Das Foto ist in {X}.', k:['ein','mein'], en:p=>`The photo is in ${p.np}.`, ja:p=>`写真は${p.ja}の中にあります。`},
+  {p:'in', c:'akk', w:'wohin', t:'Ich lege das Foto in {X}.', k:['ein','mein'], en:p=>`I put the photo in ${p.np}.`, ja:p=>`写真を${p.ja}の中に入れます。`},
+  {p:'an', c:'dat', w:'wo', t:'Das Bild hängt an {X}.', k:['ein','mein'], en:p=>`The picture is hanging on ${p.np}.`, ja:p=>`絵は${p.ja}に掛かっています。`},
+  {p:'an', c:'akk', w:'wohin', t:'Ich hänge das Bild an {X}.', k:['ein','mein'], en:p=>`I hang the picture on ${p.np}.`, ja:p=>`絵を${p.ja}に掛けます。`},
+  // genitive: feminine nouns only (masculine/neuter nouns would also need -s/-es)
+  {p:'wegen', c:'gen', t:'Wegen {X} bleibe ich zu Hause.', k:['def','mein'], fem:true, en:p=>`Because of ${p.np}, I'm staying at home.`, ja:p=>`${p.ja}のせいで家にいます。`},
+  {p:'trotz', c:'gen', t:'Trotz {X} sind wir gekommen.', k:['def','mein'], fem:true, en:p=>`Despite ${p.np}, we came.`, ja:p=>`${p.ja}にもかかわらず来ました。`},
+];
+const GEN = {def:{m:'des',f:'der',n:'des'}, ein:{m:'eines',f:'einer',n:'eines'}};
+const wordId = de => { const w = W.find(x => x.de===de); return w ? w.id : null; };
+function prepArticle(kind, cas, g){
+  if(cas!=='gen') return article(kind, cas, g);
+  return kind==='def' ? GEN.def[g] : (kind==='ein' ? '' : kind[0]) + GEN.ein[g];
+}
+function qPrepCase(){
+  const p = pick(Object.keys(PREPS)), [cas, en, ja, ex] = PREPS[p];
+  return {type:'praep', prompt:esc(p), hint:`Welcher Kasus folgt? (${en} / ${ja})`,
+    opts:['Akkusativ','Dativ','Akkusativ oder Dativ','Genitiv'], correct:PREP_CASE_NAME[cas],
+    full:ex, tr:`${p} = ${en}\n${p} = ${ja}`, explain:PREP_RULE[cas](p), wid:wordId(p)};
+}
+function qPrepSentence(n){
+  const frames = P_FRAMES.filter(f => !f.fem || n.g==='f');
+  const f = pick(frames), kind = pick(f.k);
+  const correct = prepArticle(kind, f.c, n.g), form = nounForm(n, f.c==='gen' ? 'nom' : f.c);
+  const pool = f.c==='gen'
+    ? (kind==='def' ? ['der','des','dem','den','die'] : ['meiner','meines','meinem','meinen','meine'])
+    : kind==='def' ? ['der','die','das','den','dem'] : ['ein','eine','einen','einem','einer'].map(x => kind==='ein' ? x : kind[0]+x);
+  const opts = shuffle([correct, ...shuffle(pool.filter(x => x!==correct)).slice(0,3)]);
+  const why = f.w ? `${f.p} + ${f.w}? (${f.w==='wo' ? 'Ort' : 'Richtung'}) → ${CASES[f.c]}` : `${f.p} + ${CASES[f.c]}`;
+  return {type:'praep', prompt:esc(f.t).replace('{X}', `${gap} ${esc(form)}`), hint:`Welcher Artikel passt? (${n.noun} = ${meaning(n.w)})`,
+    opts, correct, full:f.t.replace('{X}', `${correct} ${form}`), tr:translate(f, kind, n, null),
+    explain:`${why} · ${n.art} ${n.noun} (${GNAME[n.g]}) → ${correct}` + weakNote(n, form), wid:n.w.id};
+}
+const qPraep = n => Math.random() < 0.3 ? qPrepCase() : qPrepSentence(n);
+
 const meaning = w => `${firstEn(w.en)} / ${firstJa(w.ja)}`;
 function qGenus(n){
   const tip = GENUS_TIPS.find(([re, art]) => re.test(n.noun) && art===n.art);
@@ -478,9 +561,9 @@ function qPlural(n){
 }
 function buildGrammar(count=10){
   const all = nouns(); if(!all.length) return [];
-  const types = S.gtype==='mix' ? ['genus','kasus','adj','plural'] : [S.gtype];
-  const fits = {genus:n=>true, kasus:n=>!n.adjNoun, adj:n=>!n.adjNoun, plural:n=>!!n.pl};
-  const make = {genus:qGenus, kasus:qKasus, adj:qAdj, plural:qPlural};
+  const types = S.gtype==='mix' ? ['genus','kasus','adj','plural','praep'] : [S.gtype];
+  const fits = {genus:n=>true, kasus:n=>!n.adjNoun, adj:n=>!n.adjNoun, plural:n=>!!n.pl, praep:n=>!n.adjNoun};
+  const make = {genus:qGenus, kasus:qKasus, adj:qAdj, plural:qPlural, praep:qPraep};
   const out = [], used = new Set();
   for(let guard=0; out.length<count && guard<500; guard++){
     const t = pick(types);
@@ -524,8 +607,8 @@ function renderHome(){
   for(const b of $('gtSeg').children) b.setAttribute('aria-pressed', String(b.dataset.v===S.gtype));
   const pct = k => { const s=S.gstats[k]; return s && s.n ? Math.round(s.ok/s.n*100)+'%' : '–'; };
   $('gsGenus').textContent = pct('genus'); $('gsKasus').textContent = pct('kasus'); $('gsAdj').textContent = pct('adj');
-  $('gsPlural').textContent = pct('plural');
-  for(const k of ['Genus','Kasus','Adj','Plural']){ const s=S.gstats[k.toLowerCase()]; $('gs'+k).title = s ? `${s.ok} von ${s.n} richtig` : ''; }
+  $('gsPlural').textContent = pct('plural'); $('gsPraep').textContent = pct('praep');
+  for(const k of ['Genus','Kasus','Adj','Plural','Praep']){ const s=S.gstats[k.toLowerCase()]; $('gs'+k).title = s ? `${s.ok} von ${s.n} richtig` : ''; }
   $('gramMissBtn').disabled = !S.missG.length;
   $('gramMissBtn').textContent = S.missG.length ? `Fehlerliste wiederholen (${S.missG.length})` : 'Fehlerliste ist leer';
   $('gramBtn').disabled = !nouns().length;
@@ -623,7 +706,7 @@ function renderQ(){
 function renderGrammarQ(it){
   const g = it.g, w = W[g.wid];
   $('qTag').innerHTML = `Grammatik · ${G_TYPES[g.type]} · ${w ? w.lv : ''}` + (it.review ? ' <span class="retry">Fehlerliste</span>' : '');
-  $('qWord').className = (g.type==='genus' || g.type==='plural') ? 'word' : 'word sent';
+  $('qWord').className = g.prompt.includes('class="gap"') ? 'word sent' : 'word';
   $('qWord').innerHTML = g.prompt;
   $('qHint').textContent = g.hint;
   $('sayBtn').hidden = true;

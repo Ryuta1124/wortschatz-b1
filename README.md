@@ -24,6 +24,8 @@ A1・A2 のワードリストでレベルを付けた約2,900語で使ってい�
   - 格に応じた冠詞（der/den/dem…、ein/einen/einem…、kein・mein も）
   - 形容詞の語尾変化（弱変化・混合変化。例：einen neu**en** Tisch）
   - 複数形（der Apfel → die Äpfel。Umlaut + -e、-en、-er、語尾なし…から選ぶ）
+  - 前置詞の格：前置詞を見て格（Akkusativ / Dativ / Akkusativ oder Dativ / Genitiv）を答える問題と、
+    文の中で冠詞を選ぶ問題（mit dem…、für den…、Wechselpräpositionen の wo? → Dativ / wohin? → Akkusativ、wegen / trotz + Genitiv）
   - 回答後に「なぜその形になるか」（格・性・冠詞の種類・複数形の型）と、文の英訳・日本語訳を表示。n変化名詞（den Kollegen など）にも対応
 - **画面表示はドイツ語**：説明文もドイツ語にして、小さなところからドイツ語に慣れる
 - 学習記録はブラウザ（localStorage）に保存。端末ごとに別管理

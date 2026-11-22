@@ -121,7 +121,26 @@ A1 にあれば A1、A2 にあれば A2、どちらにもなければ B1 とし�
 **確認**：ヘッドレスの Edge で約17,400問を生成して選択肢・訳を確認し、
 「間違えても1セットは10問のまま」「間違えた数だけリストに入る」「復習で正解するとリストが空になる」「保存と読み込み」を確認した。
 
-## 11. 公開について
+## 11. 前置詞の格
+
+**頼んだこと**：前置詞の格の問題も追加したい。
+
+**作り方**
+- 前置詞の表（約25語）に、とる格・英語と日本語の意味・短い例（`mit dem Bus`、`neben dem Bett / neben das Bett`）を持たせた。
+- 2種類の問題をおよそ 3:7 の割合で出す。
+  - **格を答える**：`mit` → Akkusativ / Dativ / Akkusativ oder Dativ / Genitiv。
+  - **文で冠詞を選ぶ**：`Ich interessiere mich für ___ Region.`（4格）、`Was machst du mit ___ Handy?`（3格）など。
+- Wechselpräpositionen（an, auf, hinter, in, neben, über, unter, vor）は、同じ前置詞で「場所（wo?）」と「方向（wohin?）」の文を対にした
+  （`Das Handy liegt auf dem Tisch.` / `Ich lege das Handy auf den Tisch.`）。説明にも「wo? → Dativ / wohin? → Akkusativ」と出す。
+- `in dem → im`、`zu dem → zum` のように定冠詞と融合する前置詞（in, an, zu, von, bei）は、ein / mein の文でだけ使う。
+- Genitiv（wegen, trotz）は女性名詞だけで出題する。男性・中性名詞では名詞にも -s / -es が付き、その付け方を自動では確実に決められないため。
+
+**確認**：すべての文型と冠詞の種類・性について、別に書いた表と照合。融合する前置詞に定冠詞が付かないこと、
+Genitiv の文に女性名詞しか入らないことを確認し、約26,500問を生成して壊れた文がないことを確かめた。
+
+**残っている点**：文型に名詞を当てはめるため、`Ich lege den Schlüssel unter den Gruß.` のように意味が不自然な文ができることがある（文法としては正しい）。
+
+## 12. 公開について
 
 単語集の例文を含むデータは、ワードリストの著作権表示を踏まえて公開していない。
 このリポジトリには、アプリ本体、スクリプト、作成記録、自作例文のサンプルデータだけを置いている。
