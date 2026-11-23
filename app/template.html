@@ -259,7 +259,11 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
 
 <script>
 const DATA = /*DATA*/[];
-const W = DATA.map(([de,en,ja,t,exde,exen,lv,pl],id)=>({id,de,en,ja,t,exde,exen,lv,pl}));
+const W = DATA.map(([de,en,ja,t,exde,exen,lv,pl,exja],id)=>({id,de,en,ja,t,exde,exen,lv,pl,exja}));
+// translations follow the chosen language (Englisch / Japanisch)
+const JA = () => S.lang==='ja';
+const exTr = w => JA() ? (w.exja || w.exen || '') : (w.exen || '');
+const trLine = tr => { if(!tr) return ''; const parts = tr.split('\n'); return JA() ? (parts[1] || parts[0]) : parts[0]; };
 const ans = w => S.lang==='ja' ? w.ja : w.en;
 const INTERVALS = [0,1,2,4,8,16,32]; // days, by level
 const MAX = 6;
@@ -488,7 +492,7 @@ function prepArticle(kind, cas, g){
 }
 function qPrepCase(){
   const p = pick(Object.keys(PREPS)), [cas, en, ja, ex] = PREPS[p];
-  return {type:'praep', prompt:esc(p), hint:`Welcher Kasus folgt? (${en} / ${ja})`,
+  return {type:'praep', prompt:esc(p), hint:`Welcher Kasus folgt? (${JA() ? ja : en})`,
     opts:['Akkusativ','Dativ','Akkusativ oder Dativ','Genitiv'], correct:PREP_CASE_NAME[cas],
     full:ex, tr:`${p} = ${en}\n${p} = ${ja}`, explain:PREP_RULE[cas](p), wid:wordId(p)};
 }
@@ -507,7 +511,7 @@ function qPrepSentence(n){
 }
 const qPraep = n => Math.random() < 0.3 ? qPrepCase() : qPrepSentence(n);
 
-const meaning = w => `${firstEn(w.en)} / ${firstJa(w.ja)}`;
+const meaning = w => JA() ? firstJa(w.ja) : firstEn(w.en);
 function qGenus(n){
   const tip = GENUS_TIPS.find(([re, art]) => re.test(n.noun) && art===n.art);
   return {type:'genus', prompt:esc(n.noun), hint:`Welcher Artikel? (${meaning(n.w)})`,
@@ -739,7 +743,7 @@ function answerGrammar(it, i){
   else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>Richtig: ${esc(g.correct)} · in der Fehlerliste gespeichert</small>`; }
   $('exLabel').textContent = 'Regel';
   $('exDe').textContent = g.full; $('exEn').textContent = g.explain;
-  $('exTr').textContent = g.tr || ''; $('exTr').hidden = !g.tr;
+  $('exTr').textContent = trLine(g.tr); $('exTr').hidden = !g.tr;
   $('exSay').hidden = !SPEAK_OK; $('exBox').hidden = false;
   if(S.auto) speak(g.full);
   $('nextBtn').hidden=false; $('nextBtn').focus({preventScroll:true});
@@ -762,11 +766,11 @@ function answer(i){
   countAnswer(); save();
   const fb=$('fb');
   if(ok){ fb.className='fb-msg ok'; fb.innerHTML = it.review ? 'Richtig! Aus der Fehlerliste entfernt.' : 'Richtig!'; }
-  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>${esc(w.de)} = ${esc(w.ja)} / ${esc(w.en)} · in der Fehlerliste gespeichert</small>`; }
+  else { fb.className='fb-msg bad'; fb.innerHTML=`Leider falsch<small>${esc(w.de)} = ${esc(ans(w))} · in der Fehlerliste gespeichert</small>`; }
   $('nextBtn').hidden=false; $('nextBtn').focus({preventScroll:true});
   if(w.exde){
     $('exLabel').textContent = 'Beispiel';
-    $('exDe').textContent = w.exde; $('exEn').textContent = w.exen || '';
+    $('exDe').textContent = w.exde; $('exEn').textContent = exTr(w);
     $('exSay').hidden = !SPEAK_OK; $('exBox').hidden = false;
   }
 }
@@ -786,9 +790,9 @@ function finish(){
   $('rMsg').textContent = (pct===1 ? 'Alles richtig. Sehr gut!' : pct>=.8 ? 'Gut gemacht!' : 'Die Fehler kannst du später mit der Fehlerliste wiederholen.') + listNote;
   $('rMissedLabel').textContent = lastKind==='gram' ? 'Fehler – so ist es richtig' : 'Falsch beantwortete Wörter';
   if(lastKind==='gram'){
-    $('rMissed').innerHTML = q.missed.length ? q.missed.map(it=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(it.g.full)}" aria-label="Satz anhören">${SPK}</button>` : ''}<span>${esc(it.g.full)}</span></span><span class="en">${esc(it.g.explain)}${it.g.tr ? '<br>' + esc(it.g.tr).replace('\n','<br>') : ''}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
+    $('rMissed').innerHTML = q.missed.length ? q.missed.map(it=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(it.g.full)}" aria-label="Satz anhören">${SPK}</button>` : ''}<span>${esc(it.g.full)}</span></span><span class="en">${esc(it.g.explain)}${it.g.tr ? '<br>' + esc(trLine(it.g.tr)) : ''}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
   } else {
-    $('rMissed').innerHTML = q.missed.length ? q.missed.map(w=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(w.de)}" aria-label="Aussprache: ${esc(w.de)}">${SPK}</button>` : ''}<span>${splitArt(w.de)}</span></span><span class="en">${esc(w.ja)}<br>${esc(w.en)}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
+    $('rMissed').innerHTML = q.missed.length ? q.missed.map(w=>`<li><span class="de">${SPEAK_OK ? `<button class="say sm" data-say="${esc(w.de)}" aria-label="Aussprache: ${esc(w.de)}">${SPK}</button>` : ''}<span>${splitArt(w.de)}</span></span><span class="en">${esc(ans(w))}</span></li>`).join('') : '<li class="empty">Keine – super!</li>';
   }
   $('againBtn').textContent = lastReview ? (left ? `Fehlerliste weiter wiederholen (${left})` : 'Neue Runde') : 'Noch eine Runde';
   show('result');

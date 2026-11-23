@@ -7,10 +7,11 @@ Usage:
 Writes dist/wortschatz.html, which opens directly in a browser (no server needed).
 
 Each row of the data is:
-    [German, English, Japanese, type, example (German), example (English), level, plural]
+    [German, English, Japanese, type, example (German), example (English), level, plural, example (Japanese)]
 type is "n" (noun), "v" (verb) or "o" (other); level is "A1", "A2" or "B1";
 plural is the plural noun without article ("Äpfel"), or "" when there is none.
-Rows with only the first 7 fields are accepted (no plural questions for them).
+Rows with only the first 7 or 8 fields are accepted (no plural questions / Japanese
+example translation for them; the English one is shown instead).
 """
 import json
 import pathlib
@@ -28,8 +29,8 @@ def main():
         source = ROOT / "data" / "sample-words.json"
     rows = json.loads(source.read_text(encoding="utf-8"))
     for i, row in enumerate(rows):
-        if len(row) not in (7, 8):
-            sys.exit(f"{source}: row {i} has {len(row)} fields, expected 7 or 8")
+        if len(row) not in (7, 8, 9):
+            sys.exit(f"{source}: row {i} has {len(row)} fields, expected 7 to 9")
     template = (ROOT / "app" / "template.html").read_text(encoding="utf-8")
     marker = "/*DATA*/[]"
     if marker not in template:

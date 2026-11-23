@@ -59,7 +59,7 @@ python scripts/build.py
 `data/words.json` は次の8項目の配列のリストです。
 
 ```json
-["der Apfel", "apple", "りんご", "n", "Ich esse jeden Morgen einen Apfel.", "I eat an apple every morning.", "A1", "Äpfel"]
+["der Apfel", "apple", "りんご", "n", "Ich esse jeden Morgen einen Apfel.", "I eat an apple every morning.", "A1", "Äpfel", "毎朝りんごを1個食べます。"]
 ```
 
 | 位置 | 内容 |
@@ -72,6 +72,9 @@ python scripts/build.py
 | 5 | 例文の英訳 |
 | 6 | レベル：`A1` / `A2` / `B1` |
 | 7 | 複数形（冠詞なし。例：`Äpfel`）。ない場合は `""`（省略可） |
+| 8 | 例文の日本語訳（省略可。ない場合は日本語モードでも英訳を表示） |
+
+訳の言語を「Japanisch」にすると、選択肢・例文の訳・文法問題のヒントと訳・結果画面がすべて日本語に、「Englisch」ではすべて英語になります。
 
 学習記録は行の位置（番号）で管理しているので、単語を追加するときは末尾に足してください。
 
