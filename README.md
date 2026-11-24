@@ -28,8 +28,8 @@ A1・A2 のワードリストでレベルを付けた約2,900語で使ってい�
   - 前置詞の格：前置詞を見て格（Akkusativ / Dativ / Akkusativ oder Dativ / Genitiv）を答える問題と、
     文の中で冠詞を選ぶ問題（mit dem…、für den…、Wechselpräpositionen の wo? → Dativ / wohin? → Akkusativ、wegen / trotz + Genitiv）
   - 回答後に「なぜその形になるか」（格・性・冠詞の種類・複数形の型）と、文の英訳・日本語訳を表示。n変化名詞（den Kollegen など）にも対応
-- **よく使う言い回し（Wendungen）**：`zum Beispiel`、`zum Glück`、`direkt neben`、`Bescheid sagen` など、かたまりで覚える表現115個
-  - 6つのテーマ：Satzverbindungen（つなぎの言葉）、Ort & Zeit（場所・時間）、Im Gespräch（会話の決まり文句）、Meinung（意見）、Verb + Nomen（動詞と名詞の組み合わせ）、Briefe & E-Mails（手紙・メール）
+- **よく使う言い回し（Wendungen）**：`zum Beispiel`、`zum Glück`、`direkt neben`、`Bescheid sagen` など、かたまりで覚える表現203個
+  - 7つのテーマ：Satzverbindungen（つなぎの言葉）、Ort & Zeit（場所・時間）、Im Gespräch（会話の決まり文句）、Alltag & Unterwegs（買い物・レストラン・道案内・体調）、Meinung（意見）、Verb + Nomen（動詞と名詞の組み合わせ）、Briefe & E-Mails（手紙・メール）
   - 3種類の問題：例文の空所に入る言い回しを選ぶ（ヒントは文の訳）、言い回しの意味を選ぶ、訳からドイツ語を選ぶ
   - 言い回しごとに間隔反復で再出題し、間違えたものは専用の Fehlerliste へ。テーマ別の進み具合と一覧（意味・例文・読み上げ付き）
   - 「Verb + Nomen」では、同じ動詞をとる表現（Platz nehmen / Rücksicht nehmen）を不正解の選択肢にしない
@@ -120,4 +120,4 @@ B1 リストでは約1割の例文を手作業で直しました。
 ## ライセンス
 
 プログラム（`app/`・`scripts/`）は MIT ライセンスです。[LICENSE](LICENSE) を参照してください。
-`data/sample-words.json` の例文と、`app/template.html` に入っている読み物30話と言い回し115個の例文（独・英・日）は自作です（AI アシスタントと作成）。
+`data/sample-words.json` の例文と、`app/template.html` に入っている読み物30話と言い回し203個の例文（独・英・日）は自作です（AI アシスタントと作成）。
