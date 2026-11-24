@@ -49,6 +49,20 @@ h1 small{font-family:var(--f-mono);font-weight:500;font-size:.72rem;color:var(--
 .stat{background:var(--sunk);border-radius:10px;padding:10px 8px;text-align:center;min-width:0}
 .stat b{display:block;font-family:var(--f-mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
 .stat em{font-style:normal;font-size:.7rem;color:var(--muted)}
+.lvpanel{display:flex;flex-direction:column;gap:12px}
+#lvRows{display:flex;flex-direction:column;gap:12px}
+.lvrow{display:grid;grid-template-columns:2.4em 1fr;gap:4px 10px;align-items:center}
+.lvrow b{font-family:var(--f-mono);font-size:.95rem;grid-row:span 2}
+.lvbar{display:flex;height:10px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.lvbar i{display:block;height:100%}
+.lvbar i.m, .sw.m{background:var(--accent)}
+.lvbar i.s, .sw.s{background:var(--accent);opacity:.4}
+.lvtxt{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.lvtxt strong{color:var(--fg);font-weight:600}
+.lvlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:var(--muted)}
+.lvlegend span{display:flex;align-items:center;gap:5px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px}
+.sw.n{background:var(--sunk);border:1px solid var(--line)}
 .boxes{display:flex;gap:3px;height:34px;align-items:flex-end}
 .boxes div{flex:1;background:var(--accent);opacity:.25;border-radius:3px 3px 0 0;min-height:2px}
 .boxes-legend{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);font-family:var(--f-mono)}
@@ -159,6 +173,12 @@ footer{font-size:.75rem;color:var(--muted);text-align:center;line-height:1.6}
       <div class="stat"><b id="sSeen">0</b><em>Gelernt</em></div>
       <div class="stat"><b id="sMaster">0</b><em>Gefestigt</em></div>
       <div class="stat"><b id="sAcc">–</b><em>Quote</em></div>
+    </div>
+
+    <div class="panel v-only lvpanel">
+      <div class="label">Fortschritt nach Niveau</div>
+      <div id="lvRows"></div>
+      <div class="lvlegend"><span><i class="sw m"></i>Gefestigt</span><span><i class="sw s"></i>Gelernt</span><span><i class="sw n"></i>Noch nicht gelernt</span></div>
     </div>
 
     <div class="panel v-only" style="display:flex;flex-direction:column;gap:10px">
@@ -595,6 +615,16 @@ function renderHome(){
   $('sAcc').textContent = tot ? Math.round(cor/tot*100)+'%' : '–';
   const live = S.lastDay===t || S.lastDay===t-1 ? S.streak : 0;
   $('streakN').textContent = `${live} ${live===1 ? 'Tag' : 'Tage'} in Folge`;
+  // words not yet learned, per level (for the current direction)
+  $('lvRows').innerHTML = ['A1','A2','B1'].map(L => {
+    const ws = W.filter(w => w.lv===L);
+    let m=0, s=0;
+    for(const w of ws){ const c=C()[w.id]; if(!c) continue; if(c.b>=MAX) m++; else s++; }
+    const total = ws.length, neu = total - m - s, pc = x => (x/total*100).toFixed(1) + '%';
+    return `<div class="lvrow"><b>${L}</b>
+      <div class="lvbar" title="${m} gefestigt · ${s} gelernt · ${neu} noch nicht gelernt"><i class="m" style="width:${pc(m)}"></i><i class="s" style="width:${pc(s)}"></i></div>
+      <div class="lvtxt"><span>Noch <strong>${neu}</strong> von ${total} nicht gelernt</span><span>${Math.round((m+s)/total*100)} % gelernt</span></div></div>`;
+  }).join('');
   const mx=Math.max(...dist,1);
   $('boxes').innerHTML = dist.map((n,i)=>`<div title="${n} Wörter" style="height:${Math.max(4,n/mx*100)}%;opacity:${.22+i*.13}"></div>`).join('');
   for(const b of $('goalSeg').children) b.setAttribute('aria-pressed', String(+b.dataset.v===S.goal));
