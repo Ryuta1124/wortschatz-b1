@@ -830,7 +830,7 @@ function renderHome(){
   $('gramMissBtn').textContent = S.missG.length ? `Fehlerliste wiederholen (${S.missG.length})` : 'Fehlerliste ist leer';
   $('gramBtn').disabled = !nouns().length;
   const left = S.goal - S.dayCount;
-  $('startBtn').textContent = left>0 ? `Heute lernen (noch ${left} ${left===1 ? 'Frage' : 'Fragen'})` : 'Ziel erreicht! Noch eine Runde lernen';
+  $('startBtn').textContent = left>0 ? `Heute lernen (noch ${left} ${left===1 ? 'Frage' : 'Fragen'})` : `Ziel erreicht! Noch eine Runde (${S.goal} Fragen)`;
   const nMiss = MV().length;
   $('weakBtn').disabled = nMiss===0; $('weakBtn').textContent = nMiss ? `Fehlerliste wiederholen (${nMiss})` : 'Fehlerliste ist leer';
   show('home');
@@ -964,7 +964,7 @@ let Q=null;
 function buildDaily(){
   const t=today(); const P=pool();
   const left = S.goal - S.dayCount;
-  const n = left > 0 ? left : 10;
+  const n = left > 0 ? left : S.goal;   // goal reached: another round of the chosen size
   const due = shuffle(P.filter(w=>{const c=C()[w.id]; return c && c.d<=t;})).sort((a,b)=>C()[a.id].d-C()[b.id].d);
   const fresh = shuffle(P.filter(w=>!C()[w.id]));
   const minNew = Math.min(fresh.length, Math.ceil(n*0.3));
